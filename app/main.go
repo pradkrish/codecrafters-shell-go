@@ -4,34 +4,42 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
+var builtInCommands = map[string]bool{
+	"exit": true,
+	"echo": true,
+	"type": true,
+}
+
 func main() {
-	reader := bufio.NewReader(os.Stdin)
+
 	for {
 		fmt.Print("$ ")
-		command, err := reader.ReadString('\n')
+		cmd, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading input:", err)
+			fmt.Println("Error reading input:", err)
 			os.Exit(1)
 		}
-		command = strings.TrimSpace(command)
-
-		if command == "exit" {
+		if cmd == "exit\n" {
 			break
-		} else if strings.HasPrefix(command, "echo ") {
-			fmt.Println(command[5:])
-		} else if strings.HasPrefix(command, "type ") {
-			name := strings.TrimSpace(command[5:])
-			switch name {
-			case "echo", "exit", "type":
-				fmt.Println(name + " is a shell builtin")
-			default:
-				fmt.Println(name + ": not found")
-			}
-		} else {
-			fmt.Println(command + ": command not found")
 		}
+		if strings.HasPrefix(cmd, "echo ") {
+			fmt.Println(cmd[5 : len(cmd)-1])
+			continue
+		}
+		if strings.HasPrefix(cmd, "type ") {
+			if _, ok := builtInCommands[cmd[5:len(cmd)-1]]; ok {
+				fmt.Printf("%s is a shell builtin\n", cmd[5:len(cmd)-1])
+			} else if path, err := exec.LookPath(cmd[5 : len(cmd)-1]); err == nil {
+				fmt.Printf("%s is %s\n", cmd[5:len(cmd)-1], path)
+			} else {
+				fmt.Printf("%s: not found\n", cmd[5:len(cmd)-1])
+			}
+			continue
+		}
+		fmt.Printf("%s: command not found\n", cmd[:len(cmd)-1])
 	}
 }
